@@ -1,0 +1,491 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>餐馆自助点餐</title>
+<script src="https://cdn.jsdelivr.net/npm/qrcode@1.5.1/build/qrcode.min.js"></script>
+<style>
+*{margin:0;padding:0;box-sizing:border-box;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;-webkit-tap-highlight-color:transparent}
+body{background:#f5f5f5;color:#222;padding-bottom:90px;min-height:100vh}
+.header{background:linear-gradient(135deg,#c1121f,#780000);color:#fff;padding:16px;text-align:center;font-size:20px;font-weight:bold;position:sticky;top:0;z-index:99;box-shadow:0 2px 8px rgba(193,18,31,.3)}
+.header small{display:block;font-size:12px;font-weight:normal;opacity:.9;margin-top:2px}
+.admin-btn{position:fixed;top:12px;right:10px;background:rgba(255,255,255,.2);color:#fff;padding:6px 12px;border-radius:20px;font-size:12px;border:1px solid rgba(255,255,255,.4);z-index:100;backdrop-filter:blur(4px)}
+.tab-nav{display:flex;background:#fff;position:sticky;top:57px;z-index:98;box-shadow:0 1px 4px rgba(0,0,0,.05);overflow-x:auto;scrollbar-width:none}
+.tab-nav::-webkit-scrollbar{display:none}
+.tab-nav div{flex:1;min-width:70px;text-align:center;padding:14px 8px;font-size:14px;border-bottom:3px solid transparent;transition:.2s;white-space:nowrap}
+.tab-nav div.active{border-color:#c1121f;color:#c1121f;font-weight:bold}
+.tab-nav div:active{background:#f0f0f0}
+.container{padding:12px}
+.item{background:#fff;border-radius:12px;padding:14px;margin-bottom:10px;display:flex;justify-content:space-between;align-items:center;box-shadow:0 1px 3px rgba(0,0,0,.04)}
+.item-info{flex:1}
+.item-info h4{font-size:16px;margin-bottom:4px}
+.item-info p{color:#999;font-size:12px}
+.tag-hot{display:inline-block;background:#ffebee;color:#c1121f;font-size:10px;padding:1px 6px;border-radius:4px;margin-left:6px;vertical-align:middle}
+.price{color:#c1121f;font-weight:bold;font-size:17px;margin-top:6px}
+.price small{font-size:12px}
+.btns{display:flex;align-items:center;gap:4px}
+.btns .minus,.btns .plus{width:34px;height:34px;display:inline-flex;align-items:center;justify-content:center;border-radius:50%;font-size:20px;font-weight:bold;user-select:none}
+.btns .minus{border:1.5px solid #ddd;color:#666}
+.btns .plus{background:#c1121f;color:#fff;border:1.5px solid #c1121f}
+.btns .num{min-width:28px;text-align:center;font-size:16px;font-weight:bold}
+.cart-bar{position:fixed;bottom:0;left:0;right:0;background:#fff;padding:12px 16px;display:flex;align-items:center;box-shadow:0 -2px 12px rgba(0,0,0,.1);z-index:90}
+.cart-icon{width:50px;height:50px;background:#c1121f;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:24px;color:#fff;margin-right:12px;position:relative}
+.cart-badge{position:absolute;top:-4px;right:-4px;background:#ffd60a;color:#222;font-size:11px;font-weight:bold;min-width:20px;height:20px;border-radius:10px;display:flex;align-items:center;justify-content:center;padding:0 4px}
+.cart-total{flex:1}
+.cart-total .num{font-size:13px;color:#666}
+.cart-total .money{font-size:20px;color:#c1121f;font-weight:bold}
+.submit-btn{background:#c1121f;color:#fff;border:none;padding:13px 24px;border-radius:25px;font-size:16px;font-weight:bold}
+.submit-btn:active{transform:scale(.96)}
+.pop{position:fixed;inset:0;background:rgba(0,0,0,.5);display:none;align-items:flex-end;justify-content:center;z-index:1000;animation:fadeIn .2s}
+.pop.show{display:flex}
+.pop-box{background:#fff;width:100%;max-width:500px;border-radius:16px 16px 0 0;padding:20px;max-height:90vh;overflow-y:auto;animation:slideUp .25s}
+@keyframes fadeIn{from{opacity:0}to{opacity:1}}
+@keyframes slideUp{from{transform:translateY(100%)}to{transform:translateY(0)}}
+.pop h3{margin-bottom:16px;font-size:18px;text-align:center}
+.pop label{font-size:14px;color:#666;display:block;margin-top:10px;margin-bottom:4px}
+input,textarea,select{width:100%;border:1px solid #e0e0e0;padding:12px;border-radius:10px;margin:6px 0;font-size:15px;background:#fafafa;-webkit-appearance:none}
+input:focus,textarea:focus,select:focus{outline:none;border-color:#c1121f;background:#fff}
+.spicy-options{display:flex;gap:8px;margin:8px 0;flex-wrap:wrap}
+.spicy-options div{flex:1;min-width:70px;text-align:center;padding:10px;border:1.5px solid #e0e0e0;border-radius:10px;font-size:14px;background:#fafafa;transition:.2s}
+.spicy-options div.sel{border-color:#c1121f;background:#fff0f1;color:#c1121f;font-weight:bold}
+.oper-row{display:flex;gap:10px;margin-top:16px}
+.oper-row button{flex:1;padding:13px;border-radius:10px;border:none;font-size:15px;font-weight:bold}
+.btn-cancel{background:#eee;color:#666}
+.btn-ok{background:#c1121f;color:#fff}
+.btn-ok:active,.btn-cancel:active{transform:scale(.98)}
+.admin-section{margin-bottom:20px;padding-bottom:16px;border-bottom:1px solid #eee}
+.admin-section h4{font-size:15px;margin-bottom:10px;color:#c1121f}
+.admin-item{display:flex;gap:8px;align-items:center;margin-bottom:8px}
+.admin-item input{margin:0}
+.admin-item .name-input{flex:2}
+.admin-item .price-input{flex:1}
+.admin-item .del-btn{width:36px;height:36px;border:none;background:#ffebee;color:#c1121f;border-radius:8px;font-size:18px}
+.add-btn{width:100%;padding:10px;border:1.5px dashed #ccc;background:transparent;border-radius:8px;color:#999;font-size:14px;margin-top:4px}
+.wechat-setting{background:#fff8e1;padding:12px;border-radius:10px;margin-bottom:16px}
+.wechat-setting label{font-size:13px;color:#b8860b}
+.qrcode-box{text-align:center;margin:15px 0}
+#qrcode{display:inline-block;padding:10px;background:#fff;border-radius:8px}
+.order-preview{background:#f8f8f8;border-radius:10px;padding:12px;font-size:13px;line-height:1.8;white-space:pre-wrap;margin:10px 0;max-height:200px;overflow-y:auto}
+.empty-tip{text-align:center;color:#bbb;padding:60px 20px;font-size:15px}
+.hint{font-size:12px;color:#999;text-align:center;margin-top:8px}
+</style>
+</head>
+<body>
+
+<div class="header">
+  🍽️ 餐馆自助点餐
+  <small>扫码下单 · 微信转账 · 零手续费</small>
+</div>
+<button class="admin-btn" onclick="openAdmin()">⚙️ 后台</button>
+
+<div class="tab-nav">
+  <div class="active" data-type="signature">⭐ 招牌</div>
+  <div data-type="appetizer">🥗 前菜</div>
+  <div data-type="stirfry">🍳 小炒</div>
+  <div data-type="soup">🍲 汤品</div>
+  <div data-type="drink">🥤 饮品</div>
+</div>
+
+<div class="container" id="goodsList"></div>
+
+<!-- 底部购物车 -->
+<div class="cart-bar">
+  <div class="cart-icon">
+    🛒
+    <span class="cart-badge" id="cartNum">0</span>
+  </div>
+  <div class="cart-total">
+    <div class="num">已选 <span id="cartCount">0</span> 件商品</div>
+    <div class="money">¥<span id="totalPrice">0.00</span></div>
+  </div>
+  <button class="submit-btn" onclick="openOrderPanel()">去结算</button>
+</div>
+
+<!-- 下单弹窗 -->
+<div class="pop" id="orderPop">
+  <div class="pop-box">
+    <h3>📝 填写订单信息</h3>
+    <label>您的称呼</label>
+    <input type="text" id="userName" placeholder="例如：张先生">
+    <label>联系电话</label>
+    <input type="tel" id="userPhone" placeholder="方便骑手联系您">
+    <label>外卖收货地址</label>
+    <input type="text" id="userAddr" placeholder="详细地址，如XX小区X栋X室">
+    <label>辣度选择</label>
+    <div class="spicy-options" id="spicyOptions">
+      <div data-val="不辣" class="sel">😀 不辣</div>
+      <div data-val="微辣">🌶️ 微辣</div>
+      <div data-val="中辣">🌶️🌶️ 中辣</div>
+      <div data-val="特辣">🌶️🌶️🌶️ 特辣</div>
+    </div>
+    <label>额外备注</label>
+    <textarea id="userNote" rows="2" placeholder="不要香菜、少放盐、餐具多给一双等"></textarea>
+    <div class="oper-row">
+      <button class="btn-cancel" onclick="closePop('orderPop')">再逛逛</button>
+      <button class="btn-ok" onclick="submitOrder()">提交订单</button>
+    </div>
+    <p class="hint">提交后订单文字自动复制，打开微信粘贴发给商家即可</p>
+  </div>
+</div>
+
+<!-- 订单确认弹窗 -->
+<div class="pop" id="confirmPop">
+  <div class="pop-box">
+    <h3>✅ 订单已生成</h3>
+    <div class="order-preview" id="orderText"></div>
+    <p style="font-size:13px;color:#666;text-align:center;margin:10px 0">订单文字已复制到剪贴板<br>请打开微信，粘贴发给商家并转账</p>
+    <div class="oper-row">
+      <button class="btn-cancel" onclick="closePop('confirmPop')">关闭</button>
+      <button class="btn-ok" onclick="openWechat()">打开微信</button>
+    </div>
+  </div>
+</div>
+
+<!-- 商家后台弹窗 -->
+<div class="pop" id="adminPop">
+  <div class="pop-box">
+    <h3>🔧 商家后台管理</h3>
+
+    <div class="wechat-setting">
+      <label>商家微信号（顾客下单后跳转添加）</label>
+      <input type="text" id="wechatId" placeholder="填写你的微信号">
+    </div>
+
+    <div class="admin-section">
+      <h4>⭐ 招牌菜</h4>
+      <div id="signatureList"></div>
+      <button class="add-btn" onclick="addItem('signature')">+ 添加招牌菜</button>
+    </div>
+
+    <div class="admin-section">
+      <h4>🥗 前菜</h4>
+      <div id="appetizerList"></div>
+      <button class="add-btn" onclick="addItem('appetizer')">+ 添加前菜</button>
+    </div>
+
+    <div class="admin-section">
+      <h4>🍳 小炒</h4>
+      <div id="stirfryList"></div>
+      <button class="add-btn" onclick="addItem('stirfry')">+ 添加小炒</button>
+    </div>
+
+    <div class="admin-section">
+      <h4>🍲 汤品</h4>
+      <div id="soupList"></div>
+      <button class="add-btn" onclick="addItem('soup')">+ 添加汤品</button>
+    </div>
+
+    <div class="admin-section">
+      <h4>🥤 饮品</h4>
+      <div id="drinkList"></div>
+      <button class="add-btn" onclick="addItem('drink')">+ 添加饮品</button>
+    </div>
+
+    <div class="admin-section">
+      <h4>📱 生成点餐二维码</h4>
+      <input type="text" id="webUrl" placeholder="粘贴你的网页访问地址（https://开头）">
+      <div class="qrcode-box"><div id="qrcode"></div></div>
+      <button class="btn-ok" style="width:100%" onclick="createQR()">生成二维码</button>
+      <p class="hint">生成后长按/右键保存图片，打印贴在店里即可</p>
+    </div>
+
+    <div class="oper-row">
+      <button class="btn-cancel" onclick="resetData()">恢复默认菜单</button>
+      <button class="btn-ok" onclick="saveAdmin()">保存并关闭</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// ========== 默认菜品数据（餐馆版）==========
+const DEFAULT_DATA = {
+  signature:[
+    {name:"红烧肉",price:38,desc:"招牌必点，肥而不腻"},
+    {name:"糖醋里脊",price:32,desc:"酸甜可口，外酥里嫩"},
+    {name:"水煮鱼",price:58,desc:"鲜嫩鱼片，麻辣鲜香"},
+    {name:"宫保鸡丁",price:28,desc:"经典川菜，花生香脆"}
+  ],
+  appetizer:[
+    {name:"凉拌黄瓜",price:12,desc:"清爽开胃"},
+    {name:"皮蛋豆腐",price:14,desc:"嫩滑爽口"},
+    {name:"口水鸡",price:22,desc:"麻辣鲜香，皮脆肉嫩"},
+    {name:"拍黄瓜",price:10,desc:"蒜香浓郁"}
+  ],
+  stirfry:[
+    {name:"番茄炒蛋",price:18,desc:"家常经典，酸甜下饭"},
+    {name:"青椒肉丝",price:24,desc:"青椒爽脆，肉丝嫩滑"},
+    {name:"麻婆豆腐",price:20,desc:"麻辣鲜香，豆腐嫩滑"},
+    {name:"鱼香肉丝",price:26,desc:"酸甜微辣，下饭神器"},
+    {name:"干煸豆角",price:22,desc:"豆角干香，肉末入味"}
+  ],
+  soup:[
+    {name:"番茄蛋花汤",price:12,desc:"酸甜开胃，营养丰富"},
+    {name:"紫菜蛋花汤",price:10,desc:"清淡鲜美"},
+    {name:"酸辣汤",price:15,desc:"酸辣开胃，暖身暖胃"},
+    {name:"冬瓜排骨汤",price:28,desc:"小火慢炖，汤鲜味美"}
+  ],
+  drink:[
+    {name:"可乐",price:6,desc:"罐装，冰镇"},
+    {name:"雪碧",price:6,desc:"罐装，冰镇"},
+    {name:"酸梅汤",price:8,desc:"自制，冰镇解腻"},
+    {name:"矿泉水",price:3,desc:"瓶装纯净水"},
+    {name:"啤酒",price:8,desc:"瓶装，冰镇"}
+  ],
+  wechat:""
+};
+
+let shopData = JSON.parse(localStorage.getItem("restaurantGoods")) || JSON.parse(JSON.stringify(DEFAULT_DATA));
+let cart = JSON.parse(localStorage.getItem("restaurantCart")) || [];
+let nowType = "signature";
+let spicyLevel = "不辣";
+
+// ========== 渲染商品列表 ==========
+function renderGoods(){
+  const list = document.getElementById("goodsList");
+  list.innerHTML = "";
+  const items = shopData[nowType];
+  if(!items || items.length===0){
+    list.innerHTML = '<div class="empty-tip">该分类暂无菜品<br>请到商家后台添加</div>';
+    updateCartBar();
+    return;
+  }
+  items.forEach((item,idx)=>{
+    const cartItem = cart.find(c=>c.type===nowType&&c.index===idx);
+    const num = cartItem ? cartItem.num : 0;
+    const isSignature = nowType==="signature";
+    const div = document.createElement("div");
+    div.className="item";
+    div.innerHTML=`
+      <div class="item-info">
+        <h4>${escapeHtml(item.name)}${isSignature?'<span class="tag-hot">招牌</span>':''}</h4>
+        <p>${escapeHtml(item.desc||"")}</p>
+        <div class="price"><small>¥</small>${item.price.toFixed(2)}</div>
+      </div>
+      <div class="btns">
+        ${num>0?`<span class="minus" onclick="changeNum('${nowType}',${idx},-1)">−</span><span class="num">${num}</span>`:""}
+        <span class="plus" onclick="changeNum('${nowType}',${idx},1)">+</span>
+      </div>
+    `;
+    list.appendChild(div);
+  });
+  updateCartBar();
+}
+
+function escapeHtml(str){
+  const div=document.createElement("div");
+  div.textContent=str;
+  return div.innerHTML;
+}
+
+// ========== 购物车操作 ==========
+function changeNum(type,idx,step){
+  const goods = shopData[type][idx];
+  let c = cart.find(x=>x.type===type&&x.index===idx);
+  if(!c){
+    c = {type,index:idx,name:goods.name,price:goods.price,num:0};
+    cart.push(c);
+  }
+  c.num += step;
+  if(c.num<=0) cart = cart.filter(x=>!(x.type===type&&x.index===idx));
+  saveCart();
+  renderGoods();
+}
+
+function saveCart(){
+  localStorage.setItem("restaurantCart",JSON.stringify(cart));
+}
+
+function updateCartBar(){
+  let totalNum = 0, totalMoney = 0;
+  cart.forEach(i=>{
+    totalNum += i.num;
+    totalMoney += i.num*i.price;
+  });
+  document.getElementById("cartNum").innerText = totalNum;
+  document.getElementById("cartCount").innerText = totalNum;
+  document.getElementById("totalPrice").innerText = totalMoney.toFixed(2);
+}
+
+// ========== 分类切换 ==========
+document.querySelectorAll(".tab-nav div").forEach(t=>{
+  t.onclick = function(){
+    document.querySelectorAll(".tab-nav div").forEach(x=>x.classList.remove("active"));
+    this.classList.add("active");
+    nowType = this.dataset.type;
+    renderGoods();
+  };
+});
+
+// ========== 辣度选择 ==========
+document.querySelectorAll("#spicyOptions div").forEach(d=>{
+  d.onclick = function(){
+    document.querySelectorAll("#spicyOptions div").forEach(x=>x.classList.remove("sel"));
+    this.classList.add("sel");
+    spicyLevel = this.dataset.val;
+  };
+});
+
+// ========== 弹窗控制 ==========
+function openOrderPanel(){
+  if(cart.length===0){alert("请先选购菜品！");return;}
+  document.getElementById("orderPop").classList.add("show");
+}
+function openAdmin(){
+  renderAdminPanel();
+  document.getElementById("adminPop").classList.add("show");
+}
+function closePop(id){
+  document.getElementById(id).classList.remove("show");
+}
+
+// ========== 提交订单 ==========
+function submitOrder(){
+  const name = document.getElementById("userName").value.trim();
+  const phone = document.getElementById("userPhone").value.trim();
+  const addr = document.getElementById("userAddr").value.trim();
+  const note = document.getElementById("userNote").value.trim();
+
+  if(!name){alert("请填写您的称呼");return;}
+  if(!phone){alert("请填写联系电话");return;}
+  if(!addr){alert("请填写外卖地址");return;}
+
+  let text = "🍽️【新外卖订单】\n";
+  text += "═══════════════\n";
+  let sum = 0;
+  cart.forEach(item=>{
+    const sub = item.price*item.num;
+    text += `${item.name} ×${item.num}  ¥${sub.toFixed(2)}\n`;
+    sum += sub;
+  });
+  text += "═══════════════\n";
+  text += `🌶️ 辣度：${spicyLevel}\n`;
+  text += `👤 客户：${name}\n`;
+  text += `📞 电话：${phone}\n`;
+  text += `📍 地址：${addr}\n`;
+  text += `📝 备注：${note||"无"}\n`;
+  text += `💰 总价：¥${sum.toFixed(2)}\n`;
+  text += "\n请微信转账付款，谢谢！🙏";
+
+  const copySuccess = copyToClipboard(text);
+
+  document.getElementById("orderText").innerText = text;
+  closePop("orderPop");
+  document.getElementById("confirmPop").classList.add("show");
+
+  if(!copySuccess){
+    alert("自动复制失败，请长按上方订单文字手动复制");
+  }
+
+  cart=[];
+  saveCart();
+  renderGoods();
+  document.getElementById("userName").value="";
+  document.getElementById("userPhone").value="";
+  document.getElementById("userAddr").value="";
+  document.getElementById("userNote").value="";
+}
+
+function copyToClipboard(text){
+  if(navigator.clipboard && window.isSecureContext){
+    navigator.clipboard.writeText(text).catch(()=>{});
+    return true;
+  }
+  try{
+    const ta = document.createElement("textarea");
+    ta.value = text;
+    ta.style.position="fixed";
+    ta.style.left="-9999px";
+    document.body.appendChild(ta);
+    ta.select();
+    const ok = document.execCommand("copy");
+    document.body.removeChild(ta);
+    return ok;
+  }catch(e){return false;}
+}
+
+function openWechat(){
+  const wx = shopData.wechat || "";
+  if(wx){
+    window.location.href = `weixin://`;
+    setTimeout(()=>{
+      alert(`请手动打开微信，搜索商家微信号：${wx}\n订单文字已复制，直接粘贴发送即可`);
+    },500);
+  }else{
+    alert("请打开微信，订单文字已复制，直接粘贴发给商家即可\n（商家可在后台设置微信号）");
+  }
+  closePop("confirmPop");
+}
+
+// ========== 商家后台 ==========
+function renderAdminPanel(){
+  document.getElementById("wechatId").value = shopData.wechat || "";
+  ["signature","appetizer","stirfry","soup","drink"].forEach(type=>{
+    const container = document.getElementById(type+"List");
+    container.innerHTML = "";
+    shopData[type].forEach((item,i)=>{
+      const div = document.createElement("div");
+      div.className="admin-item";
+      div.innerHTML=`
+        <input class="name-input" value="${escapeHtml(item.name)}" placeholder="菜名" onchange="updateItem('${type}',${i},'name',this.value)">
+        <input class="price-input" type="number" step="0.5" value="${item.price}" placeholder="价格" onchange="updateItem('${type}',${i},'price',Number(this.value))">
+        <button class="del-btn" onclick="delItem('${type}',${i})">×</button>
+      `;
+      container.appendChild(div);
+    });
+  });
+}
+
+function updateItem(type,idx,key,val){
+  shopData[type][idx][key]=val;
+}
+
+function addItem(type){
+  shopData[type].push({name:"新菜品",price:20,desc:""});
+  renderAdminPanel();
+}
+
+function delItem(type,idx){
+  if(confirm("确定删除这个菜品吗？")){
+    shopData[type].splice(idx,1);
+    cart = cart.filter(c=>!(c.type===type));
+    saveCart();
+    renderAdminPanel();
+  }
+}
+
+function saveAdmin(){
+  shopData.wechat = document.getElementById("wechatId").value.trim();
+  localStorage.setItem("restaurantGoods",JSON.stringify(shopData));
+  renderGoods();
+  closePop("adminPop");
+  alert("保存成功！");
+}
+
+function resetData(){
+  if(confirm("确定恢复默认菜单？当前修改将丢失")){
+    shopData = JSON.parse(JSON.stringify(DEFAULT_DATA));
+    localStorage.setItem("restaurantGoods",JSON.stringify(shopData));
+    renderAdminPanel();
+    renderGoods();
+  }
+}
+
+// ========== 生成二维码 ==========
+function createQR(){
+  const url = document.getElementById("webUrl").value.trim();
+  if(!url){alert("请先填入网页网址");return;}
+  if(!url.startsWith("http")){alert("请填入以 http:// 或 https:// 开头的完整网址");return;}
+  document.getElementById("qrcode").innerHTML="";
+  new QRCode(document.getElementById("qrcode"),{
+    width:200,height:200,text:url,
+    colorDark:"#222",colorLight:"#fff",
+    correctLevel:QRCode.CorrectLevel.H
+  });
+}
+
+// ========== 初始化 ==========
+renderGoods();
+</script>
+</body>
+</html>
